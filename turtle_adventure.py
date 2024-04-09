@@ -235,8 +235,17 @@ class Enemy(TurtleGameElement):
 
     def spawn_location(self):
         """ Handle the initial location of enemy"""
-        return (random.randint(3 * (self.game.screen_width // 4), self.game.screen_width),
-                     random.randint(0, self.game.screen_height))
+        if self.game.player.x <= self.game.screen_width/2:
+            spawn_x = random.randint(3 * (self.game.screen_width // 4), self.game.screen_width)
+        else:
+            spawn_x = random.randint(0, 3 * (self.game.screen_width // 4))
+
+        if self.game.player.y <= self.game.screen_height/2:
+            spawn_y = random.randint(self.game.screen_height//2, self.game.screen_height)
+        else:
+            spawn_y = random.randint(0, self.game.screen_height // 2)
+
+        return spawn_x, spawn_y
 
     def hits_player(self):
         """
@@ -282,10 +291,10 @@ class RandomWalkEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__acc = 0.6
+        self.__acc = 0.2
         self.__speed_x = 0
         self.__speed_y = 0
-        self.__max_speed = 3
+        self.__max_speed = 2
 
     def create(self) -> None:
         self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
@@ -334,7 +343,7 @@ class ChasingEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__speed = 2.5
+        self.__speed = 2.75
 
     def create(self) -> None:
         self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
@@ -503,14 +512,6 @@ class ChargerEnemy(Enemy):
         pass
 
 
-# TODO
-# Complete the EnemyGenerator class by inserting code to generate enemies
-# based on the given game level; call TurtleAdventureGame's add_enemy() method
-# to add enemies to the game at certain points in time.
-#
-# Hint: the 'game' parameter is a tkinter's frame, so it's after()
-# method can be used to schedule some future events.
-
 class EnemyGenerator:
     """
     An EnemyGenerator instance is responsible for creating enemies of various
@@ -539,21 +540,23 @@ class EnemyGenerator:
 
     def create_enemy(self):
         # Type of enemy in list. [Subclass of Enemy, Size, Color, spawn delay, spawn quota]
-        enemies_type = [[RandomWalkEnemy, 20, 'red', 5000, 10], [ChasingEnemy, 10, 'yellow', 10000, 6],
-                        [FencingEnemy, 15, 'orange', 7500, 2], [ChargerEnemy, 18, 'navy', 15000, 2]]
+        enemies_type = [[RandomWalkEnemy, 20, 'red', 10000, 5], [ChasingEnemy, 10, 'yellow', 20000, 2],
+                        [FencingEnemy, 15, 'orange', 15000, 2], [ChargerEnemy, 18, 'navy', 25000, 1]]
         # Spawn Initial Enemies
-        loops = 1 + (self.__level // len(enemies_type))
-        if self.level >= 5:
-            enemies_type.remove([FencingEnemy, 15, 'orange', 7500, 2])
-            for _ in range(loops):
-                for i in enemies_type:
-                    self.__spawn_enemy(i[0], i[1], i[2], i[3], i[4])
-            for _ in range(loops//2):
-                self.__spawn_enemy(FencingEnemy, 15, 'orange', 7500, 3)
+        if self.level < len(enemies_type):
+            # init spawn for low level
+            low_lvl = {RandomWalkEnemy: 5, ChasingEnemy: 2, FencingEnemy: 4, ChargerEnemy: 1}
+            for i in range(self.level):
+                amount = low_lvl[enemies_type[i][0]]
+                spawn_ls = enemies_type[i]
+                self.__spawn_enemy(spawn_ls[0], spawn_ls[1], spawn_ls[2], 100, amount)
         else:
-            for _ in range(2):
-                for i in enemies_type[0:self.level]:
-                    self.__spawn_enemy(i[0], i[1], i[2], i[3], i[4])
+            extra = self.level // 20
+            high_lvl = {RandomWalkEnemy: 3 + extra, ChasingEnemy: 4 + extra,
+                        FencingEnemy: 3 + extra, ChargerEnemy: 3 + extra}
+            for i in enemies_type:
+                for j in range(high_lvl[i[0]]):
+                    self.__spawn_enemy(i[0], i[1], i[2], i[3]//(1+self.level//10), i[4])
 
     def __spawn_enemy(self, enemy_type, enemy_size: int,
                      enemy_col: str, delay: int,
