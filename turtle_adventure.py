@@ -288,7 +288,7 @@ class RandomWalkEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__acc = 0.4
+        self.__acc = 0.75
         self.__speed_x = 0
         self.__speed_y = 0
         self.__max_speed = 2
@@ -340,7 +340,7 @@ class ChasingEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__speed = 1.
+        self.__speed = 1.2
 
     def create(self) -> None:
         self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
@@ -452,7 +452,7 @@ class ChargerEnemy(Enemy):
         self.__break_deg = None
         self.__strike_speed = 25
         self.__hunt_speed = 2
-
+        # Attribute for Charging State
         self.__charge_rad = 150
         self.__charge_speed = 1
         self.__charge_state = 0
@@ -470,7 +470,8 @@ class ChargerEnemy(Enemy):
     def __hunt(self):
         player_x = self.game.player.x - self.x
         player_y = self.game.player.y - self.y
-        if math.sqrt(player_x ** 2 + player_y**2) <= self.__charge_rad:
+        if math.sqrt(player_x ** 2 + player_y**2) <= self.__charge_rad and\
+           0 <= self.x <= self.game.screen_width and 0 <= self.y <= self.game.screen_height:
             self.__state = self.__charge
             return
         deg = math.atan2(player_y, player_x)
@@ -553,6 +554,9 @@ class EnemyGenerator:
         return self.__level
 
     def create_enemy(self):
+        '''
+        Spawn New enemy based on level
+        '''
         # Type of enemy in list. [Subclass of Enemy, Size, Color, spawn delay, spawn quota]
         enemies_type = [[RandomWalkEnemy, 20, 'red', 10000, 5], [ChasingEnemy, 10, 'yellow', 20000, 2],
                         [FencingEnemy, 15, 'orange', 15000, 2], [ChargerEnemy, 18, 'navy', 25000, 1]]
@@ -565,7 +569,7 @@ class EnemyGenerator:
                 spawn_ls = enemies_type[i]
                 self.__spawn_enemy(spawn_ls[0], spawn_ls[1], spawn_ls[2], 100, amount)
         elif self.level <= 30:
-            extra = self.level // 20
+            extra = self.level // 10
             high_lvl = {RandomWalkEnemy: 3 + extra, ChasingEnemy: 4 + extra,
                         FencingEnemy: 3 + extra, ChargerEnemy: 3 + extra}
             for i in enemies_type:
@@ -582,7 +586,7 @@ class EnemyGenerator:
                      enemy_col: str, delay: int,
                      spawn_quota: int = 100) -> None:
         """
-        Create a new enemy, possibly based on the game level
+        Create a new enemy
         """
         if spawn_quota > 0:
             new_enemy = enemy_type(self.__game, enemy_size, enemy_col)
