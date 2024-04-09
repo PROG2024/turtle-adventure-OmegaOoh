@@ -240,10 +240,7 @@ class Enemy(TurtleGameElement):
         else:
             spawn_x = random.randint(0, 3 * (self.game.screen_width // 4))
 
-        if self.game.player.y <= self.game.screen_height/2:
-            spawn_y = random.randint(self.game.screen_height//2, self.game.screen_height)
-        else:
-            spawn_y = random.randint(0, self.game.screen_height // 2)
+        spawn_y = random.randint(0, self.game.screen_height)
 
         return spawn_x, spawn_y
 
@@ -291,7 +288,7 @@ class RandomWalkEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__acc = 0.2
+        self.__acc = 0.4
         self.__speed_x = 0
         self.__speed_y = 0
         self.__max_speed = 2
@@ -343,7 +340,7 @@ class ChasingEnemy(Enemy):
                  color: str):
         super().__init__(game, size, color)
         self.__obj = None
-        self.__speed = 2.75
+        self.__speed = 1.
 
     def create(self) -> None:
         self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
@@ -386,6 +383,7 @@ class FencingEnemy(Enemy):
     def create(self) -> None:
         self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
 
+
     def __move_up(self):
         self.y -= self.__speed
         if self.y < self.game.home.y - self.__path_rad:
@@ -419,8 +417,20 @@ class FencingEnemy(Enemy):
                            self.y + self.size/2)
 
     def spawn_location(self):
+
         home_loc = (self.game.home.x, self.game.home.y)
-        return home_loc[0] + self.__path_rad, home_loc[1] + self.__path_rad
+        x_offset = random.choice([-self.__path_rad, self.__path_rad])
+        y_offset = random.choice([-self.__path_rad, self.__path_rad])
+        spawn_loc = home_loc[0] + x_offset, home_loc[1] + y_offset
+        if spawn_loc[0] > home_loc[0] and spawn_loc[1] > home_loc[1]:
+            self.state = self.__move_up
+        elif spawn_loc[0] < home_loc[0] and spawn_loc[1] < home_loc[1]:
+            self.state = self.__move_down
+        elif spawn_loc[0] > home_loc[0] and spawn_loc[1] < home_loc[1]:
+            self.state = self.__move_left
+        else:
+            self.state = self.__move_right
+        return spawn_loc
 
     def delete(self) -> None:
         pass
@@ -442,13 +452,17 @@ class ChargerEnemy(Enemy):
         self.__break_deg = None
         self.__strike_speed = 25
         self.__hunt_speed = 2
+
         self.__charge_rad = 150
-        self.__charge_speed = 2
-        self.__state = self.__hunt
+        self.__charge_speed = 1
         self.__charge_state = 0
         self.__charge_dir = None
-        self.__charge_col = {0: "red", 10: "yellow", 20: "green"}
+        self.__charge_interval = 10
+        self.__charge_col = {0: "red", self.__charge_interval: "yellow",
+                             self.__charge_interval * 2: "green"}
         self.__charge_loc = None
+
+        self.__state = self.__hunt
 
     def create(self) -> None:
         self.__obj = self.canvas.create_rectangle(0, 0, 0, 0, fill=self.color)
@@ -464,7 +478,7 @@ class ChargerEnemy(Enemy):
         self.y += math.sin(deg) * self.__speed
 
     def __charge(self):
-        if self.__charge_state % 10 == 0:
+        if self.__charge_state % self.__charge_interval == 0:
             self.__charge_state = int(self.__charge_state)
             col = self.__charge_col[self.__charge_state]
             self.canvas.itemconfigure(self.__obj, fill=col)
@@ -550,13 +564,19 @@ class EnemyGenerator:
                 amount = low_lvl[enemies_type[i][0]]
                 spawn_ls = enemies_type[i]
                 self.__spawn_enemy(spawn_ls[0], spawn_ls[1], spawn_ls[2], 100, amount)
-        else:
+        elif self.level <= 30:
             extra = self.level // 20
             high_lvl = {RandomWalkEnemy: 3 + extra, ChasingEnemy: 4 + extra,
                         FencingEnemy: 3 + extra, ChargerEnemy: 3 + extra}
             for i in enemies_type:
                 for j in range(high_lvl[i[0]]):
-                    self.__spawn_enemy(i[0], i[1], i[2], i[3]//(1+self.level//10), i[4])
+                    self.__spawn_enemy(i[0], i[1], i[2], i[3]//(1+self.level//10), 2)
+        else:
+            for i in range((3*self.level)//4):
+                i_type = random.choice(enemies_type)
+                self.__spawn_enemy(i_type[0], i_type[1], i_type[2],
+                                   random.randint(i_type[3]//2, 2 * i_type[3]),  # Random Spawn Rate
+                                   random.randint(i_type[4], i_type[4] + 1 + self.level // 30))   # Random Spawn Number
 
     def __spawn_enemy(self, enemy_type, enemy_size: int,
                      enemy_col: str, delay: int,
