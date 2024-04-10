@@ -554,9 +554,9 @@ class EnemyGenerator:
         return self.__level
 
     def create_enemy(self):
-        '''
+        """
         Spawn New enemy based on level
-        '''
+        """
         # Type of enemy in list. [Subclass of Enemy, Size, Color, spawn delay, spawn quota]
         enemies_type = [[RandomWalkEnemy, 20, 'red', 10000, 5], [ChasingEnemy, 10, 'yellow', 20000, 2],
                         [FencingEnemy, 15, 'orange', 15000, 2], [ChargerEnemy, 18, 'navy', 25000, 1]]
@@ -583,8 +583,8 @@ class EnemyGenerator:
                                    random.randint(i_type[4], i_type[4] + 1 + self.level // 30))   # Random Spawn Number
 
     def __spawn_enemy(self, enemy_type, enemy_size: int,
-                     enemy_col: str, delay: int,
-                     spawn_quota: int = 100) -> None:
+                      enemy_col: str, delay: int,
+                      spawn_quota: int = 100) -> None:
         """
         Create a new enemy
         """
@@ -595,7 +595,7 @@ class EnemyGenerator:
             new_enemy.y = spawn_loc[1]
             self.game.add_element(new_enemy)
             self.game.after(delay, lambda: self.__spawn_enemy(enemy_type, enemy_size,
-                                                             enemy_col, delay, spawn_quota-1))
+                                                              enemy_col, delay, spawn_quota-1))
 
 
 class TurtleAdventureGame(Game):  # pylint: disable=too-many-ancestors
