@@ -2,6 +2,8 @@
 The turtle_adventure module maintains all classes related to the Turtle's
 adventure game.
 """
+import math
+import random
 from turtle import RawTurtle
 from gamelib import Game, GameElement
 
@@ -231,6 +233,17 @@ class Enemy(TurtleGameElement):
         """
         return self.__color
 
+    def spawn_location(self):
+        """ Handle the initial location of enemy"""
+        if self.game.player.x <= self.game.screen_width/2:
+            spawn_x = random.randint(3 * (self.game.screen_width // 4), self.game.screen_width)
+        else:
+            spawn_x = random.randint(0, 3 * (self.game.screen_width // 4))
+
+        spawn_y = random.randint(0, self.game.screen_height)
+
+        return spawn_x, spawn_y
+
     def hits_player(self):
         """
         Check whether the enemy is hitting the player
@@ -241,13 +254,6 @@ class Enemy(TurtleGameElement):
             (self.y - self.size/2 < self.game.player.y < self.y + self.size/2)
         )
 
-
-# TODO
-# * Define your enemy classes
-# * Implement all methods required by the GameElement abstract class
-# * Define enemy's update logic in the update() method
-# * Check whether the player hits this enemy, then call the
-#   self.game.game_over_lose() method in the TurtleAdventureGame class.
 class DemoEnemy(Enemy):
     """
     Demo enemy
@@ -272,13 +278,254 @@ class DemoEnemy(Enemy):
         pass
 
 
-# TODO
-# Complete the EnemyGenerator class by inserting code to generate enemies
-# based on the given game level; call TurtleAdventureGame's add_enemy() method
-# to add enemies to the game at certain points in time.
-#
-# Hint: the 'game' parameter is a tkinter's frame, so it's after()
-# method can be used to schedule some future events.
+class RandomWalkEnemy(Enemy):
+    """
+    Randomly Walk Enemy
+    """
+    def __init__(self,
+                 game: "TurtleAdventureGame",
+                 size: int,
+                 color: str):
+        super().__init__(game, size, color)
+        self.__obj = None
+        self.__acc = 0.75
+        self.__speed_x = 0
+        self.__speed_y = 0
+        self.__max_speed = 2
+
+    def create(self) -> None:
+        self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+
+    def update(self) -> None:
+
+        acc_x = random.choice([-self.__acc, self.__acc])
+        acc_y = random.choice([-self.__acc, self.__acc])
+        self.__speed_x += acc_x
+        self.__speed_y += acc_y
+        if self.__speed_x > self.__max_speed:
+            self.__speed_x = self.__max_speed
+        if self.__speed_y > self.__max_speed:
+            self.__speed_y = self.__max_speed
+
+        if self.x < 0:
+            self.__speed_x = abs(self.__speed_x)
+        elif self.x > self.game.screen_height:
+            self.__speed_x = -abs(self.__speed_x)
+        self.x += self.__speed_x
+
+        if self.y < 0:
+            self.__speed_y = abs(self.__speed_y)
+        elif self.y > self.game.screen_height:
+            self.__speed_y = -abs(self.__speed_y)
+        self.y += self.__speed_y
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__obj,
+                           self.x - self.size/2,
+                           self.y - self.size/2,
+                           self.x + self.size/2,
+                           self.y + self.size/2)
+
+    def delete(self) -> None:
+        pass
+
+
+class ChasingEnemy(Enemy):
+    """ Enemy that will chase the player"""
+    def __init__(self,
+                 game: "TurtleAdventureGame",
+                 size: int,
+                 color: str):
+        super().__init__(game, size, color)
+        self.__obj = None
+        self.__speed = 1.2
+
+    def create(self) -> None:
+        self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+
+    def update(self) -> None:
+        player_x = self.game.player.x - self.x
+        player_y = self.game.player.y - self.y
+        deg = math.atan2(player_y, player_x)
+        self.x += math.cos(deg) * self.__speed
+        self.y += math.sin(deg) * self.__speed
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__obj,
+                           self.x - self.size/2,
+                           self.y - self.size/2,
+                           self.x + self.size/2,
+                           self.y + self.size/2)
+
+    def delete(self) -> None:
+        pass
+
+
+class FencingEnemy(Enemy):
+    """
+        Enemy that walk around home in square pattern
+    """
+
+    def __init__(self,
+                 game: "TurtleAdventureGame",
+                 size: int,
+                 color: str):
+        super().__init__(game, size, color)
+        self.__obj = None
+        self.__speed = 3
+        self.__path_rad = random.randint(15, 75)
+        self.state = self.__move_up
+
+    def create(self) -> None:
+        self.__obj = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+
+
+    def __move_up(self):
+        self.y -= self.__speed
+        if self.y < self.game.home.y - self.__path_rad:
+            self.state = self.__move_left
+
+    def __move_left(self):
+        self.x -= self.__speed
+        if self.x < self.game.home.x - self.__path_rad:
+            self.state = self.__move_down
+
+    def __move_down(self):
+        self.y += self.__speed
+        if self.y > self.game.home.y + self.__path_rad:
+            self.state = self.__move_right
+
+    def __move_right(self):
+        self.x += self.__speed
+        if self.x > self.game.home.x + self.__path_rad:
+            self.state = self.__move_up
+
+    def update(self) -> None:
+        self.state()
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__obj,
+                           self.x - self.size/2,
+                           self.y - self.size/2,
+                           self.x + self.size/2,
+                           self.y + self.size/2)
+
+    def spawn_location(self):
+
+        home_loc = (self.game.home.x, self.game.home.y)
+        x_offset = random.choice([-self.__path_rad, self.__path_rad])
+        y_offset = random.choice([-self.__path_rad, self.__path_rad])
+        spawn_loc = home_loc[0] + x_offset, home_loc[1] + y_offset
+        if spawn_loc[0] > home_loc[0] and spawn_loc[1] > home_loc[1]:
+            self.state = self.__move_up
+        elif spawn_loc[0] < home_loc[0] and spawn_loc[1] < home_loc[1]:
+            self.state = self.__move_down
+        elif spawn_loc[0] > home_loc[0] and spawn_loc[1] < home_loc[1]:
+            self.state = self.__move_left
+        else:
+            self.state = self.__move_right
+        return spawn_loc
+
+    def delete(self) -> None:
+        pass
+
+
+class ChargerEnemy(Enemy):
+    """
+        Enemy that will charge the player at a high speed in a strait line
+    """
+
+    def __init__(self,
+                 game: "TurtleAdventureGame",
+                 size: int,
+                 color: str):
+        super().__init__(game, size, color)
+        self.__obj = None
+        self.__speed = 2
+        self.__break_acc = 1.5
+        self.__break_deg = None
+        self.__strike_speed = 25
+        self.__hunt_speed = 2
+        # Attribute for Charging State
+        self.__charge_rad = 150
+        self.__charge_speed = 1
+        self.__charge_state = 0
+        self.__charge_dir = None
+        self.__charge_interval = 10
+        self.__charge_col = {0: "red", self.__charge_interval: "yellow",
+                             self.__charge_interval * 2: "green"}
+        self.__charge_loc = None
+
+        self.__state = self.__hunt
+
+    def create(self) -> None:
+        self.__obj = self.canvas.create_rectangle(0, 0, 0, 0, fill=self.color)
+
+    def __hunt(self):
+        player_x = self.game.player.x - self.x
+        player_y = self.game.player.y - self.y
+        if math.sqrt(player_x ** 2 + player_y**2) <= self.__charge_rad and\
+           0 <= self.x <= self.game.screen_width and 0 <= self.y <= self.game.screen_height:
+            self.__state = self.__charge
+            return
+        deg = math.atan2(player_y, player_x)
+        self.x += math.cos(deg) * self.__speed
+        self.y += math.sin(deg) * self.__speed
+
+    def __charge(self):
+        if self.__charge_state % self.__charge_interval == 0:
+            self.__charge_state = int(self.__charge_state)
+            col = self.__charge_col[self.__charge_state]
+            self.canvas.itemconfigure(self.__obj, fill=col)
+        self.__charge_state += self.__charge_speed
+        if self.__charge_state > max(self.__charge_col.keys()):
+            self.__charge_loc = (self.game.player.x, self.game.player.y)
+            self.__state = self.__strike
+            self.__charge_state = 0
+            self.__speed = self.__strike_speed
+
+    def __strike(self):
+        player_x = self.__charge_loc[0] - self.x
+        player_y = self.__charge_loc[1] - self.y
+        deg = math.atan2(player_y, player_x)
+        self.x += math.cos(deg) * self.__speed
+        self.y += math.sin(deg) * self.__speed
+        # break when nearly reach the player
+        line = math.sqrt(player_x ** 2 + player_y ** 2)
+        if line < 25:
+            self.__state = self.__break
+            self.__break_deg = deg
+
+    def __break(self):
+        self.__speed -= self.__break_acc
+        self.x += math.cos(self.__break_deg) * self.__speed
+        self.y += math.sin(self.__break_deg) * self.__speed
+        if self.__speed <= self.__hunt_speed:
+            self.canvas.itemconfigure(self.__obj, fill=self.color)
+            self.__state = self.__hunt
+            self.__speed = self.__hunt_speed
+
+    def update(self) -> None:
+        self.__state()
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__obj,
+                           self.x - self.size/2,
+                           self.y - self.size/2,
+                           self.x + self.size/2,
+                           self.y + self.size/2)
+
+    def delete(self) -> None:
+        pass
+
 
 class EnemyGenerator:
     """
@@ -290,8 +537,7 @@ class EnemyGenerator:
         self.__game: TurtleAdventureGame = game
         self.__level: int = level
 
-        # example
-        self.__game.after(100, self.create_enemy)
+        self.create_enemy()
 
     @property
     def game(self) -> "TurtleAdventureGame":
@@ -307,17 +553,52 @@ class EnemyGenerator:
         """
         return self.__level
 
-    def create_enemy(self) -> None:
+    def create_enemy(self):
         """
-        Create a new enemy, possibly based on the game level
+        Spawn New enemy based on level
         """
-        new_enemy = DemoEnemy(self.__game, 20, "red")
-        new_enemy.x = 100
-        new_enemy.y = 100
-        self.game.add_element(new_enemy)
+        # Type of enemy in list. [Subclass of Enemy, Size, Color, spawn delay, spawn quota]
+        enemies_type = [[RandomWalkEnemy, 20, 'red', 10000, 5], [ChasingEnemy, 10, 'yellow', 20000, 2],
+                        [FencingEnemy, 15, 'orange', 15000, 2], [ChargerEnemy, 18, 'navy', 25000, 1]]
+        # Spawn Initial Enemies
+        if self.level < len(enemies_type):
+            # init spawn for low level
+            low_lvl = {RandomWalkEnemy: 5, ChasingEnemy: 2, FencingEnemy: 4, ChargerEnemy: 1}
+            for i in range(self.level):
+                amount = low_lvl[enemies_type[i][0]]
+                spawn_ls = enemies_type[i]
+                self.__spawn_enemy(spawn_ls[0], spawn_ls[1], spawn_ls[2], 100, amount)
+        elif self.level <= 30:
+            extra = self.level // 10
+            high_lvl = {RandomWalkEnemy: 3 + extra, ChasingEnemy: 4 + extra,
+                        FencingEnemy: 3 + extra, ChargerEnemy: 3 + extra}
+            for i in enemies_type:
+                for j in range(high_lvl[i[0]]):
+                    self.__spawn_enemy(i[0], i[1], i[2], i[3]//(1+self.level//10), 2)
+        else:
+            for i in range((3*self.level)//4):
+                i_type = random.choice(enemies_type)
+                self.__spawn_enemy(i_type[0], i_type[1], i_type[2],
+                                   random.randint(i_type[3]//2, 2 * i_type[3]),  # Random Spawn Rate
+                                   random.randint(i_type[4], i_type[4] + 1 + self.level // 30))   # Random Spawn Number
+
+    def __spawn_enemy(self, enemy_type, enemy_size: int,
+                      enemy_col: str, delay: int,
+                      spawn_quota: int = 100) -> None:
+        """
+        Create a new enemy
+        """
+        if spawn_quota > 0:
+            new_enemy = enemy_type(self.__game, enemy_size, enemy_col)
+            spawn_loc = new_enemy.spawn_location()
+            new_enemy.x = spawn_loc[0]
+            new_enemy.y = spawn_loc[1]
+            self.game.add_element(new_enemy)
+            self.game.after(delay, lambda: self.__spawn_enemy(enemy_type, enemy_size,
+                                                              enemy_col, delay, spawn_quota-1))
 
 
-class TurtleAdventureGame(Game): # pylint: disable=too-many-ancestors
+class TurtleAdventureGame(Game):  # pylint: disable=too-many-ancestors
     """
     The main class for Turtle's Adventure.
     """
